@@ -1,0 +1,41 @@
+# Kustomization for BPLA Person Detection
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: bpla-detection
+commonLabels:
+  app: bpla-detection
+  version: v1
+resources:
+  - configmap.yaml
+  - deployment.yaml
+  - ingress.yaml
+  - rbac.yaml
+configMapGenerator:
+  - name: bpla-detection-config
+    behavior: replace
+    files:
+      - MODEL_PATH=/run/models/best_model.pth
+      - DEVICE=gpu
+      - CONF_THRESHOLD=0.25
+      - IOU_THRESHOLD=0.5
+      - RESIZE_DIM=640
+      - HOST=0.0.0.0
+      - PORT=8000
+      - GRADIO_PORT=7860
+secretGenerator:
+  - name: bpla-detection-secrets
+    behavior: replace
+    envs:
+      - secrets.env
+replicas:
+  - name: bpla-detection
+    count: 2
+images:
+  - name: bpla/person-detection
+    newTag: latest
+    newName: bpla/person-detection
+commonAnnotations:
+  maintainer: "bpla-team@example.com"
+  version: "1.0.0"
+patches:
+  - path: replicas-patch.yaml

@@ -1,0 +1,143 @@
+# Compiled files
+*.ji
+*.o
+*.obj
+*.dll
+*.dylib
+*.so
+*.a
+*.d
+
+# Docker
+*.tar
+*.tar.gz
+*.tgz
+docker/volumes/
+docker/.env
+docker-compose.override.yml
+.Dockerfile.*.tmp
+
+# Kubernetes
+kubeconfig
+*.kubeconfig
+helm/charts/*.tgz
+!helm/charts/*.tgz
+helm/repositories/
+helm/repository/
+*.kube
+*.k8s
+*.kubectl
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.code-workspace
+*.sublime-*
+.project
+.classpath
+
+# OS
+.DS_Store
+Thumbs.db
+*.dmg
+*.iso
+*.img
+
+# Logs
+*.log
+logs/
+*.log.*
+*.journal
+*.journal~
+
+# Testing
+.coverage
+htmlcov/
+*.trx
+*.xml
+junit.xml
+test-results/
+test-reports/
+*.test
+*.spec
+*.bench
+
+# Datasets
+data/raw/
+data/processed/
+data/external/
+data/interim/
+!data/.gitkeep
+*.zip
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+
+# Config
+.env
+.env.local
+.env.*.local
+secrets/
+config/secrets/
+*.secret
+*.key
+*.pem
+*.crt
+*.cert
+*.keystore
+*.truststore
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.cache
+*.lock
+*.pid
+*.sock
+
+# Profiling
+*.prof
+*.lprof
+*.callgrind
+*.cachegrind
+massif.out.*
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+
+# Debug
+*.dSYM
+*.dwp
+*.pdb
+*.idb
+*.ilk
+
+# Runtime
+*.pid
+*.lock
+*.socket
+
+# Environment
+.env
+deploy/kubernetes/secrets.env
+ENV/
+env/
+
+# Project specific
+src/data/raw/
+src/data/processed/
+src/data/external/
+models/*.bson
+src/core/target
+src/core/Cargo.lock
+src/Yggdrasil
+.securesense

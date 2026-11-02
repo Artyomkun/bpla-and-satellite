@@ -1,0 +1,243 @@
+global:
+  namespace: bpla
+  imageRegistry: ghcr.io/artyomkun
+  imagePullSecrets: []
+  storageClass: ""
+replicaCount: 3
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+terminationGracePeriodSeconds: 60
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetGPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 10
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+vpa:
+  enabled: false
+  updateMode: "auto"
+  minAllowed:
+    memory: "512Mi"
+    gpu: "250m"
+  maxAllowed:
+    memory: "16Gi"
+    gpu: "8000m"
+pdb:
+  enabled: true
+  minAvailable: 2
+  maxUnavailable: null
+persistence:
+  models:
+    enabled: true
+    storageClass: ""
+    size: 10Gi
+    accessMode: ReadWriteMany
+    existingClaim: ""
+  outputs:
+    enabled: true
+    storageClass: ""
+    size: 20Gi
+    accessMode: ReadWriteOnce
+    existingClaim: ""
+  juliaDepot:
+    enabled: true
+    storageClass: ""
+    size: 5Gi
+    accessMode: ReadWriteOnce
+    existingClaim: ""
+model:
+  path: "/app/models/best_model.bson"
+  name: "RussianYOLO"
+  version: "v1.0"
+  numClasses: 2
+  inputSize: 640
+  confidenceThreshold: 0.25
+  iouThreshold: 0.5
+  batchSize: 1
+  device: "auto"
+  precision: "fp32"
+env:
+  JULIA_NUM_THREADS: "4"
+  JULIA_GPU_TARGET: "native"
+  LOG_LEVEL: "INFO"
+  LOG_FORMAT: "json"
+  CACHE_ENABLED: "true"
+  CACHE_TTL_DEFAULT: "300"
+  CACHE_TTL_MODEL: "3600"
+  CACHE_TTL_RESULT: "600"
+secrets:
+  enabled: true
+  externalSecrets:
+    enabled: false
+    secretStoreRef:
+      name: vault-backend
+      kind: ClusterSecretStore
+    refreshInterval: "1h"
+  inline:
+    REDIS_PASSWORD: ""
+    RABBITMQ_USER: "bpla"
+    RABBITMQ_PASSWORD: ""
+    API_KEY: ""
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: true
+  master:
+    persistence:
+      enabled: true
+      size: 1Gi
+    resources:
+      requests:
+        memory: 256Mi
+        gpu: 100m
+      limits:
+        memory: 1Gi
+        gpu: 500m
+rabbitmq:
+  enabled: true
+  auth:
+    username: bpla
+  persistence:
+    enabled: true
+    size: 5Gi
+  resources:
+    requests:
+      memory: 512Mi
+      gpu: 250m
+    limits:
+      memory: 2Gi
+      gpu: 1000m
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600s"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600s"
+    nginx.ingress.kubernetes.io/http2-max-field-size: "16k"
+    nginx.ingress.kubernetes.io/http2-max-header-size: "16k"
+  tls:
+    enabled: false
+    secretName: tls
+security:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+podSecurityContext:
+  fsGroup: 1000
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+serviceAccount:
+  create: true
+  name: "bpla-detection"
+  annotations: {}
+  automountServiceAccountToken: true
+rbac:
+  create: true
+  rules:
+    - apiGroups: [""]
+      resources: ["pods", "services", "endpoints", "configmaps"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["apps"]
+      resources: ["deployments", "replicasets"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["autoscaling"]
+      resources: ["horizontalpodautoscalers"]
+      verbs: ["get", "list", "watch"]
+monitoring:
+  enabled: true
+
+  prometheus:
+    enabled: true
+    port: 8000
+    path: /metrics
+
+  servicemonitor:
+    enabled: true
+    interval: 15s
+    scrapeTimeout: 10s
+    labels:
+      release: prometheus
+
+  grafana:
+    enabled: true
+    dashboard:
+      enabled: true
+      labelKey: grafana_dashboard
+      labelValue: "1"
+tracing:
+  enabled: false
+  otlp:
+    endpoint: "http://otel-collector:4317"
+  samplingRatio: 0.1
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: bpla
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 6379
+        - port: 5672
+        - port: 53
+          protocol: UDP
+nodeAffinity:
+  enabled: false
+  key: node-type
+  values:
+    - gpu-optimized
+    - compute-optimized
+tolerations: []
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8000"
+  prometheus.io/path: "/metrics"
+podLabels:
+  app: bpla-person-detection
+  version: v2
+  environment: production
+priorityClassName: ""
+initContainers:
+  enabled: false
+  containers:
+    - name: model-downloader
+      image: amazon/aws-cli:latest
+      command: ["aws", "s3", "cp", "s3://bpla-models/best_model.bson", "/models/"]
+sidecars:
+  enabled: false
+  containers:
+    - name: fluentbit
+      image: fluent/fluent-bit:latest
+extraVolumes: []
+extraVolumeMounts: []

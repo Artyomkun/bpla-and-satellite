@@ -1,0 +1,14 @@
+[build]
+target = "riscv64gc-unknown-linux-gnu"
+
+[target.riscv64gc-unknown-linux-gnu]
+linker = "riscv64-linux-gnu-gcc"
+ar = "riscv64-linux-gnu-ar"
+
+[target.riscv64gc-unknown-linux-gnu.cc]
+riscv64gc-unknown-linux-gnu = "riscv64-linux-gnu-gcc"
+
+[env]
+PKG_CONFIG_ALLOW_CROSS = "1"
+PKG_CONFIG_SYSROOT_DIR_riscv64gc_unknown_linux_gnu = "/usr/riscv64-linux-gnu"
+PKG_CONFIG_LIBDIR_riscv64gc_unknown_linux_gnu = "/usr/lib/riscv64-linux-gnu/pkgconfig:/usr/share/pkgconfig"

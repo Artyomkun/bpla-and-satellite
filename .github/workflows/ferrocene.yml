@@ -1,0 +1,55 @@
+name: Ferrocene Safety Checks
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/core/**"
+  pull_request:
+    paths:
+      - "src/core/**"
+
+env:
+  CARGO_TERM_COLOR: always
+  FERROCENE_TARGET: riscv64gc-unknown-linux-gnu
+  WORKING_DIRECTORY: src/core
+
+jobs:
+  ferrocene-subset:
+    name: Certified Subset Compliance
+    runs-on: [self-hosted, ferrocene]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Validate the Ferrocene installation
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+        run: rustc +ferrocene -vV
+
+      - name: Toolchain self-test
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+        run: ferrocene-self-test
+
+      - name: Check with Ferrocene (-D warnings)
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+        run: |
+          cargo +ferrocene check --locked --target "${FERROCENE_TARGET}" --no-default-features
+          cargo +ferrocene clippy --locked --target "${FERROCENE_TARGET}" -- -D warnings
+
+      - name: Write build evidence
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+        run: |
+          mkdir -p evidence
+          rustc +ferrocene -vV > evidence/rustc-version.txt
+          rustc +ferrocene --print cfg --target "${FERROCENE_TARGET}" > evidence/target-cfg.txt
+          cargo +ferrocene tree --locked --target "${FERROCENE_TARGET}" > evidence/dependencies.txt
+          cargo +ferrocene build --locked --release --target "${FERROCENE_TARGET}" -v > evidence/build.log 2>&1
+
+      - name: Upload evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ferrocene-evidence
+          path: ${{ env.WORKING_DIRECTORY }}/evidence
+          if-no-files-found: error

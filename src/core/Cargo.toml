@@ -1,0 +1,59 @@
+[package]
+name = "bpla-core"
+version = "1.0.0"
+edition = "2021"
+description = "BPLA Person Detection core infrastructure for RISC-V"
+license = "MIT"
+rust-version = "1.97.1"
+
+[lib]
+name = "bpla_core"
+path = "lib.rs"
+crate-type = ["rlib"]
+
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(ferrocene)'] }
+
+[dependencies]
+async-lock = "3.4.2"
+breaker = "2.0.2"
+governor = "0.10.4"
+backon = "1.6.0"
+thiserror = "2.0.21"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json", "fmt"] }
+metrics = "0.24.6"
+metrics-exporter-prometheus = "0.18.3"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+rustls = "0.23.46"
+heapless = "0.9.3"
+futures = "0.3.34"
+tcslog = "0.6.0"
+tokio-serial = "5.5.0"
+serialport = "4.10.1"
+pollster = { version = "1.0.1", features = ["macro"] }
+
+[target.'cfg(target_arch = "riscv64")'.dependencies]
+riscv = { version = "0.16.1", default-features = false }
+
+[features]
+default = ["std"]
+std = []
+network = ["std"]
+
+[profile.release]
+panic = "abort"
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+debug = 2
+
+[profile.dev]
+opt-level = "z"
+panic = "abort"
+
+[[bin]]
+name = "bpla-main"
+path = "main.rs"

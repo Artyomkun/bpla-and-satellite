@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "bpla-person-detection.fullname" . }}-config
+  namespace: {{ .Values.global.namespace | default "bpla" }}
+  labels:
+    {{- include "bpla-person-detection.labels" . | nindent 4 }}
+data:
+  MODEL_PATH: {{ .Values.env.MODEL_PATH | default "/app/models/best_model.bson" | quote }}
+  MODEL_NAME: {{ .Values.env.MODEL_NAME | default "RussianYOLO" | quote }}
+  MODEL_VERSION: {{ .Values.env.MODEL_VERSION | default "v2.0" | quote }}
+  NUM_CLASSES: {{ .Values.env.NUM_CLASSES | default "2" | quote }}
+  INPUT_SIZE: {{ .Values.env.INPUT_SIZE | default "640" | quote }}
+  DEVICE: {{ .Values.env.DEVICE | default "auto" | quote }}
+  CONFIDENCE_THRESHOLD: {{ .Values.env.CONFIDENCE_THRESHOLD | default "0.25" | quote }}
+  IOU_THRESHOLD: {{ .Values.env.IOU_THRESHOLD | default "0.5" | quote }}
+  BATCH_SIZE: {{ .Values.env.BATCH_SIZE | default "1" | quote }}
+  JULIA_NUM_THREADS: {{ .Values.env.JULIA_NUM_THREADS | default "4" | quote }}
+  JULIA_GPU_TARGET: {{ .Values.env.JULIA_GPU_TARGET | default "native" | quote }}
+  LOG_LEVEL: {{ .Values.env.LOG_LEVEL | default "INFO" | quote }}
+  LOG_FORMAT: {{ .Values.env.LOG_FORMAT | default "json" | quote }}
+  METRICS_ENABLED: {{ .Values.env.METRICS_ENABLED | default "true" | quote }}
+  METRICS_PORT: {{ .Values.env.METRICS_PORT | default "8000" | quote }}
+  METRICS_PATH: {{ .Values.env.METRICS_PATH | default "/metrics" | quote }}
+  CACHE_ENABLED: {{ .Values.env.CACHE_ENABLED | default "true" | quote }}
+  CACHE_TTL_DEFAULT: {{ .Values.env.CACHE_TTL_DEFAULT | default "300" | quote }}
+  CACHE_TTL_MODEL: {{ .Values.env.CACHE_TTL_MODEL | default "3600" | quote }}
+  CACHE_TTL_RESULT: {{ .Values.env.CACHE_TTL_RESULT | default "600" | quote }}
+  REDIS_HOST: {{ .Values.env.REDIS_HOST | default "redis-cache" | quote }}
+  REDIS_PORT: {{ .Values.env.REDIS_PORT | default "6379" | quote }}
+  REDIS_DB: {{ .Values.env.REDIS_DB | default "0" | quote }}
+  MQ_ENABLED: {{ .Values.env.MQ_ENABLED | default "true" | quote }}
+  RABBITMQ_HOST: {{ .Values.env.RABBITMQ_HOST | default "rabbitmq" | quote }}
+  RABBITMQ_PORT: {{ .Values.env.RABBITMQ_PORT | default "5672" | quote }}
+  QUEUE_INFERENCE: {{ .Values.env.QUEUE_INFERENCE | default "inference_requests" | quote }}
+  QUEUE_RESULTS: {{ .Values.env.QUEUE_RESULTS | default "inference_results" | quote }}
+  QUEUE_DEAD_LETTER: {{ .Values.env.QUEUE_DEAD_LETTER | default "inference_dead" | quote }}
+  CIRCUIT_BREAKER_ENABLED: {{ .Values.env.CIRCUIT_BREAKER_ENABLED | default "true" | quote }}
+  CIRCUIT_BREAKER_FAILURE_THRESHOLD: {{ .Values.env.CIRCUIT_BREAKER_FAILURE_THRESHOLD | default "5" | quote }}
+  CIRCUIT_BREAKER_TIMEOUT_SECONDS: {{ .Values.env.CIRCUIT_BREAKER_TIMEOUT_SECONDS | default "30" | quote }}
+  CIRCUIT_BREAKER_HALF_OPEN_REQUESTS: {{ .Values.env.CIRCUIT_BREAKER_HALF_OPEN_REQUESTS | default "3" | quote }}
+  RATE_LIMITER_ENABLED: {{ .Values.env.RATE_LIMITER_ENABLED | default "true" | quote }}
+  RATE_LIMITER_REQUESTS_PER_MINUTE: {{ .Values.env.RATE_LIMITER_REQUESTS_PER_MINUTE | default "1000" | quote }}
+  RATE_LIMITER_BURST: {{ .Values.env.RATE_LIMITER_BURST | default "2000" | quote }}
+  OTEL_ENABLED: {{ .Values.env.OTEL_ENABLED | default "false" | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.env.OTEL_EXPORTER_OTLP_ENDPOINT | default "http://otel-collector:4317" | quote }}
+  OTEL_SERVICE_NAME: {{ .Values.env.OTEL_SERVICE_NAME | default "bpla-detection" | quote }}

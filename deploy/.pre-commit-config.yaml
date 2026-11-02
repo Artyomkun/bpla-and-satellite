@@ -1,0 +1,194 @@
+repos:
+  - repo: local
+    hooks:
+      - id: julia-format
+        name: 🧹 Julia Formatter
+        entry: julia --project=. -e '
+          using JuliaFormatter;
+          format(["src/", "test/"]; 
+            verbose=true,
+            indent=4,
+            margin=120,
+            always_for_in=true,
+            whitespace_typedefs=true,
+            whitespace_ops_in_indices=true
+          )'
+        language: system
+        files: \.jl$
+        pass_filenames: false
+        description: "Форматирование всего Julia-кода по стандартам BPLA"
+
+  - repo: local
+    hooks:
+      - id: julia-test
+        name: 🧪 Julia Tests
+        entry: julia --project=. -e '
+          using Pkg;
+          Pkg.test(; coverage=true)'
+        language: system
+        files: \.jl$|Project\.toml|Manifest\.toml
+        pass_filenames: false
+        stages: [pre-push]
+        description: "Запуск всех тестов перед пушем"
+
+  - repo: local
+    hooks:
+      - id: julia-dep-update
+        name: 📦 Julia Dependencies
+        entry: julia --project=. -e '
+          using Pkg;
+          Pkg.update();
+          Pkg.status()'
+        language: system
+        files: Project\.toml
+        pass_filenames: false
+        description: "Обновление зависимостей при изменении Project.toml"
+  
+  - repo: https://github.com/instrumenta/kubeval
+    rev: v0.16.1
+    hooks:
+      - id: kubeval
+        name: ☸️ Kubernetes Validate
+        files: \.yaml$|\.yml$
+        exclude: helm/.*/templates/.*\.yaml
+        args:
+          - "--strict"
+          - "--ignore-missing-schemas"
+          - "--kubernetes-version=1.28"
+        description: "Валидация Kubernetes-манифестов"
+
+  - repo: https://github.com/zegl/kube-linter
+    rev: v0.6.8
+    hooks:
+      - id: kube-linter
+        name: 🔒 Kubernetes Lint
+        files: deploy/kubernetes/|deploy/helm/
+        args:
+          - "check"
+          - "--format=plain"
+          - "--include=all"
+        description: "Проверка безопасности K8s-конфигураций"
+
+  - repo: local
+    hooks:
+      - id: helm-lint
+        name: 🎩 Helm Lint
+        entry: bash -c 'cd deploy/helm/bpla-person-detection && helm lint .'
+        language: system
+        files: deploy/helm/.*\.yaml$|Chart\.yaml$|values.*\.yaml$
+        pass_filenames: false
+        description: "Проверка Helm-чартов"
+
+  - repo: local
+    hooks:
+      - id: helm-template
+        name: 📄 Helm Template
+        entry: bash -c 'cd deploy/helm/bpla-person-detection && helm template . --debug > /dev/null'
+        language: system
+        files: deploy/helm/.*\.yaml$|Chart\.yaml$|templates/.*\.yaml$
+        pass_filenames: false
+        description: "Проверка генерации Helm-шаблонов"
+
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.13.0-beta
+    hooks:
+      - id: hadolint
+        name: 🐳 Docker Lint
+        files: Dockerfile.*$
+        description: "Проверка Dockerfile"
+  
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.42.0
+    hooks:
+      - id: markdownlint
+        name: 📝 Markdown Lint
+        files: \.md$
+        description: "Проверка Markdown-документации"
+
+  - repo: local
+    hooks:
+      - id: toc-generate
+        name: 📑 Generate TOC
+        entry: bash -c '
+          for f in README.md docs/*.md; do
+            [ -f "$f" ] && npx markdown-toc -i "$f";
+          done'
+        language: system
+        files: \.md$
+        pass_filenames: false
+        description: "Генерация оглавления в документации"
+  
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        name: 🔐 Detect Secrets
+        args:
+          - "--baseline"
+          - ".secrets.baseline"
+          - "--exclude"
+          - 'secrets\.env|\.pem|\.key'
+        description: "Поиск секретов в коде"
+
+  - repo: local
+    hooks:
+      - id: trivy-scan
+        name: 🛡️ Trivy Vulnerability Scan
+        entry: bash -c 'trivy filesystem --severity CRITICAL,HIGH --no-progress ./'
+        language: system
+        files: \.jl$|\.cpp$|\.proto$|Project\.toml
+        pass_filenames: false
+        stages: [pre-push]
+        description: "Сканирование уязвимостей"
+  
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+        name: ✅ Check YAML
+        args: ["--unsafe"]
+        files: \.yaml$|\.yml$
+      - id: check-toml
+        name: ✅ Check TOML
+        files: \.toml$|Project\.toml$
+      - id: check-json
+        name: ✅ Check JSON
+        files: \.json$
+      - id: detect-private-key
+        name: 🔑 Detect Private Keys
+      - id: end-of-file-fixer
+        name: 📄 Fix EOF
+        exclude: \.pb$|\.bin$|\.jpg$|\.png$
+      - id: trailing-whitespace
+        name: ✂️ Trailing Whitespace
+        args: ["--markdown-line-ending-exclude", "**/*.md"]
+      - id: mixed-line-ending
+        name: 🔄 Mixed Line Endings
+        args: ["--fix=lf"]
+      - id: check-added-large-files
+        name: 📦 Large Files
+        args: ["--maxkb=10240"]
+      - id: check-merge-conflict
+        name: ⚠️ Merge Conflicts
+      - id: check-case-conflict
+        name: 🔠 Case Conflict
+      - id: check-executables-have-shebangs
+        name: 💻 Executable Shebangs
+
+default_stages:
+  - pre-commit
+
+default_install_hook_types:
+  - pre-commit
+  - pre-push
+
+fail_fast: false
+exclude: |
+  (?x)^(
+    outputs/|
+    \.git/|
+    \.vscode/|
+    \.idea/|
+    build/|
+    dist/|
+  )$

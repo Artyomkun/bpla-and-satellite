@@ -1,0 +1,23 @@
+apiVersion: v2
+name: bpla-person-detection
+description: High-performance person detection for UAVs. Julia+Rust+RISC-V.
+type: application
+version: 2.0.0
+appVersion: "2.0.0"
+dependencies:
+  - name: redis
+    version: "28.3.10"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: redis.enabled
+    alias: redis-cache
+  
+  - name: rabbitmq
+    version: "16.0.14"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: rabbitmq.enabled
+    alias: message-queue
+  
+  - name: prometheus
+    version: "29.40.3"
+    repository: "https://prometheus-community.github.io/helm-charts"
+    condition: prometheus.enabled

@@ -1,0 +1,117 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "bpla-person-detection.fullname" . }}
+  namespace: {{ .Values.global.namespace | default "bpla" }}
+  labels:
+    {{- include "bpla-person-detection.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "bpla-person-detection.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: {{ .Values.strategy.maxSurge | default 1 }}
+      maxUnavailable: {{ .Values.strategy.maxUnavailable | default 0 }}
+  template:
+    metadata:
+      labels:
+        {{- include "bpla-person-detection.selectorLabels" . | nindent 8 }}
+        {{- if .Values.pod.labels }}
+        {{- toYaml .Values.pod.labels | nindent 8 }}
+        {{- end }}
+      annotations:
+        {{- if .Values.pod.annotations }}
+        {{- toYaml .Values.pod.annotations | nindent 8 }}
+        {{- end }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ .Values.service.ports.metrics | quote }}
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: {{ include "bpla-person-detection.serviceAccountName" . }}
+      {{- if .Values.securityContext }}
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds | default 60 }}
+      {{- if .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.image.pullSecrets | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          {{- if .Values.command }}
+          command:
+            {{- toYaml .Values.command | nindent 12 }}
+          {{- end }}
+          env:
+            {{- if .Values.env }}
+            {{- toYaml .Values.env | nindent 12 }}
+            {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "bpla-person-detection.fullname" . }}-config
+            - secretRef:
+                name: {{ include "bpla-person-detection.fullname" . }}-secrets
+          livenessProbe:
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds | default 30 }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds | default 10 }}
+            timeoutSeconds: {{ .Values.probes.liveness.timeoutSeconds | default 5 }}
+            failureThreshold: {{ .Values.probes.liveness.failureThreshold | default 3 }}
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds | default 10 }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds | default 5 }}
+            timeoutSeconds: {{ .Values.probes.readiness.timeoutSeconds | default 5 }}
+            failureThreshold: {{ .Values.probes.readiness.failureThreshold | default 3 }}
+          volumeMounts:
+            - name: model-storage
+              mountPath: {{ .Values.persistence.models.mountPath | default "/app/models" }}
+              readOnly: true
+            - name: julia-depot
+              mountPath: {{ .Values.persistence.juliaDepot.mountPath | default "/root/.julia" }}
+            - name: tmp-storage
+              mountPath: /tmp
+            {{- if .Values.extraVolumeMounts }}
+            {{- toYaml .Values.extraVolumeMounts | nindent 12 }}
+            {{- end }}
+          {{- if .Values.securityContext }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            capabilities:
+              drop: ["ALL"]
+          {{- end }}
+      volumes:
+        - name: model-storage
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.models.existingClaim | default (printf "%s-models" (include "bpla-person-detection.fullname" .)) }}
+        - name: julia-depot
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.juliaDepot.existingClaim | default (printf "%s-julia-depot" (include "bpla-person-detection.fullname" .)) }}
+        - name: tmp-storage
+          emptyDir:
+            sizeLimit: {{ .Values.persistence.tmpStorage.size | default "2Gi" }}
+        {{- if .Values.extraVolumes }}
+        {{- toYaml .Values.extraVolumes | nindent 8 }}
+        {{- end }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if .Values.affinity }}
+      affinity:
+        {{- toYaml .Values.affinity | nindent 8 }}
+      {{- end }}
+      {{- if .Values.tolerations }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      {{- end }}
+      {{- if .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml .Values.topologySpreadConstraints | nindent 8 }}
+      {{- end }}

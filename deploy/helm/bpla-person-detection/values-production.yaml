@@ -1,0 +1,108 @@
+replicaCount: 3
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600s"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600s"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/http2-max-field-size: "16k"
+    nginx.ingress.kubernetes.io/http2-max-header-size: "16k"
+  tls:
+    enabled: false
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetGPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 10
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+pod:
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8000"
+    prometheus.io/path: "/metrics"
+  env:
+    - name: MODEL_PATH
+      value: "/app/models/best_model.bson"
+    - name: DEVICE
+      value: "auto"
+    - name: CONFIDENCE_THRESHOLD
+      value: "0.25"
+    - name: IOU_THRESHOLD
+      value: "0.5"
+    - name: JULIA_NUM_THREADS
+      value: "4"
+    - name: BATCH_SIZE
+      value: "1"
+    - name: LOG_LEVEL
+      value: "INFO"
+    - name: LOG_FORMAT
+      value: "json"
+    - name: CACHE_ENABLED
+      value: "true"
+    - name: REDIS_HOST
+      value: "redis-cache"
+    - name: REDIS_PORT
+      value: "6379"
+    - name: MQ_ENABLED
+      value: "true"
+    - name: RABBITMQ_HOST
+      value: "rabbitmq"
+    - name: RABBITMQ_PORT
+      value: "5672"
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+volumes:
+  modelStorage:
+    size: "10Gi"
+    storageClass: "standard"
+    mountPath: "/app/models"
+  juliaDepot:
+    size: "5Gi"
+    storageClass: "standard"
+    mountPath: "/root/.julia"
+  
+  tmpStorage:
+    size: "2Gi"
+    mountPath: "/tmp"
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: "15s"
+    scrapeTimeout: "10s"
+    path: "/metrics"
+    port: 8000
+logging:
+  level: INFO
+  format: json
+rateLimit:
+  enabled: true
+  requestsPerMinute: 1000
+  burst: 2000
+circuitBreaker:
+  enabled: true
+  failureThreshold: 5
+  timeoutSeconds: 30
+  halfOpenRequests: 3

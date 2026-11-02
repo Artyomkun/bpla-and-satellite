@@ -1,0 +1,92 @@
+# MIT License
+# Copyright (c) 2026 Person Detection Project
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+name = "BPLADetection"
+license = "MIT"
+version = "1.0.0"
+
+[compat]
+julia = "=1.13.3"
+
+[deps]
+# NOTE: ставим флаг `export JULIA_PKG_SERVER=""` потому-что CDN'ах стоят некоторые пакеты 
+# пустые и качаем напрямую с GitHub единый точка правды пробавал брать с реестра зависимостей,
+# но из-за внешних причин WI-FI качается битые зависимости/пакеты. Предварительно 
+# битые папки удалять через `rm -rf ~/.julia/packages/**/**`, после запускаем Precompiled,
+# ставим через `julia --project=. -e 'using Pkg; Pkg.instantiate()'`, 
+# предварительно заново экспорт ставим флаг может перетиреться или пропасть.
+# Под CDN имееться ввиду сленг с IT зеркала.
+#
+# Термин: 
+# Зеркало - это прямой источник от автора альтернативные доставок данных, 
+# но с другого сервра страны автора, при этом пользователь 
+# получает те же данные которые хотел от автора источника.
+#
+# Источники зеркалов:
+#
+# |Иия поставишика   |  Источник поставишика (Зеркало)             |Причина                         |
+# |------------------|---------------------------------------------|--------------------------------|
+# |BFSU              | https://mirrors.bfsu.edu.cn/julia           | (Битые данные)                 |
+# |TUNA              | https://mirrors.tuna.tsinghua.edu.cn/julia  | (Битые данные)                 |
+# |SJTUG             | https://mirrors.sjtug.sjtu.edu.cn/julia     | (Не проверен)                  |
+# |NJU               | https://mirrors.nju.edu.cn/julia            | (Не проверен)                  |
+# |CERNET            | https://mirrors.cernet.edu.cn/julia	       | (Замедлен получим посткод 402) |
+#
+BSON = "fbb218c0-5317-5bc6-957e-2ee96dd4b1f0"
+ColorTypes = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+FilePaths = "8fc22ac5-c921-52a6-82fd-178b2807b824"
+Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
+Genie = "c43c736e-a2d1-11e8-161f-af95117fbd1e"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+ImageCore = "a09fc81d-aa75-5fe9-8630-4744c3626534"
+ImageDraw = "4381153b-2b60-58ae-a1ba-fd683676385f"
+ImageFiltering = "6a3955dd-da59-5b1f-98d4-e7296123deb5"
+ImageIO = "82e4d734-157c-48bb-816b-45c225c6df19"
+ImageMagick = "6218d12a-5da1-5696-b52f-db25d2ecc6d1"
+ImageTransformations = "02fcd773-0e25-5acc-982a-7f6622650795"
+Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
+LibPQ = "194296ae-ab2e-5f79-8cd4-7183a0a5a0d1"
+OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
+Redis = "0cf705f9-a9e2-50d1-a699-2b372a39b750"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+Colors = "5ae59095-9a9b-59fe-a467-6f913c188581"
+TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"
+MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
+UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
+
+[TensorBoardLogger]
+deps = ["TensorBoardLogger"]
+version = "0.1.0"
+
+[MPI]
+deps = ["MPI"]
+version = "0.20.0"
+
+[executable]
+BPLADetection = "BPLADetection.jl"

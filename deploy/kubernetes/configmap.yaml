@@ -1,0 +1,190 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bpla-detection-config
+  namespace: bpla
+  labels:
+    app: bpla-detection
+    environment: production
+data:
+  MODEL_PATH: "/app/models/best_model.bson"
+  MODEL_NAME: "RussianYOLO"
+  MODEL_VERSION: "v1.0"
+  NUM_CLASSES: "2"
+  INPUT_SIZE: "640"
+  DEVICE: "auto"
+  CONFIDENCE_THRESHOLD: "0.25"
+  IOU_THRESHOLD: "0.5"
+  BATCH_SIZE: "1"
+  NUM_WORKERS: "4"
+  JULIA_NUM_THREADS: "4"
+  JULIA_CPU_TARGET: "native"
+  CACHE_ENABLED: "true"
+  CACHE_TTL_SECONDS: "3600"
+  CACHE_MAX_SIZE: "1000"
+  REDIS_HOST: "redis-cache"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  MQ_ENABLED: "true"
+  RABBITMQ_HOST: "rabbitmq"
+  RABBITMQ_PORT: "5672"
+  QUEUE_INFERENCE: "inference_requests"
+  QUEUE_RESULTS: "inference_results"
+  QUEUE_DEAD_LETTER: "inference_dead"
+  CIRCUIT_BREAKER_ENABLED: "true"
+  CIRCUIT_BREAKER_FAILURE_THRESHOLD: "5"
+  CIRCUIT_BREAKER_TIMEOUT_SECONDS: "30"
+  CIRCUIT_BREAKER_HALF_OPEN_REQUESTS: "3"
+  RATE_LIMITER_ENABLED: "true"
+  RATE_LIMITER_REQUESTS_PER_MINUTE: "1000"
+  RATE_LIMITER_BURST: "2000"
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "8000"
+  TRACING_ENABLED: "true"
+  OTEL_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+  OTEL_SERVICE_NAME: "bpla-detection"
+  LOG_LEVEL: "INFO"
+  LOG_FORMAT: "json"
+  LOG_OUTPUT: "stdout"
+  HEALTH_CHECK_ENABLED: "true"
+  HEALTH_CHECK_PORT: "8001"
+  config.yaml: |
+    model:
+      path: /app/models/best_model.bson
+      name: RussianYOLO
+      version: v1.0
+      num_classes: 2
+      input_size: 640
+      anchors:
+        - [10, 13, 16, 30, 33, 23]
+        - [30, 61, 62, 45, 59, 119]
+        - [116, 90, 156, 198, 373, 326]
+    
+    inference:
+      device: auto
+      batch_size: 1
+      num_workers: 4
+      precision: fp32  # fp32, fp16
+      benchmark: true
+    
+    preprocessing:
+      resize_mode: bilinear
+      normalize: true
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    
+    postprocessing:
+      nms_iou_threshold: 0.5
+      nms_score_threshold: 0.25
+      max_detections: 100
+      multi_label: false
+    
+    cache:
+      enabled: true
+      ttl_seconds: 3600
+      max_size: 1000
+      eviction_policy: lru
+    
+    circuit_breaker:
+      enabled: true
+      failure_threshold: 5
+      timeout_seconds: 30
+      half_open_requests: 3
+    
+    rate_limiter:
+      enabled: true
+      requests_per_minute: 1000
+      burst: 2000
+    
+    metrics:
+      enabled: true
+      port: 8000
+      histogram_buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]
+    
+    tracing:
+      enabled: true
+      exporter: otlp
+      endpoint: http://otel-collector:4317
+      sampling_ratio: 0.1
+    
+    logging:
+      level: INFO
+      format: json
+      output: stdout
+      fields:
+        service: bpla-detection
+        version: v1.0
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bpla-detection-secrets
+  namespace: bpla
+  labels:
+    app: bpla-detection
+type: Opaque
+stringData:
+  REDIS_PASSWORD: "${REDIS_PASSWORD}"
+  RABBITMQ_USER: "${RABBITMQ_USER}"
+  RABBITMQ_PASSWORD: "${RABBITMQ_PASSWORD}"
+  JWT_SECRET: "${JWT_SECRET}"
+  API_KEY: "${API_KEY}"
+  TLS_CERT: "${TLS_CERT}"
+  TLS_KEY: "${TLS_KEY}"
+  CA_CERT: "${CA_CERT}"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bpla-model-pvc
+  namespace: bpla
+  labels:
+    app: bpla-detection
+    component: storage
+    type: models
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: nfs-client
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bpla-output-pvc
+  namespace: bpla
+  labels:
+    app: bpla-detection
+    component: storage
+    type: outputs
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: standard
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bpla-julia-depot-pvc
+  namespace: bpla
+  labels:
+    app: bpla-detection
+    component: storage
+    type: depot
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: standard
+  volumeMode: Filesystem

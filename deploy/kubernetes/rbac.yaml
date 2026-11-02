@@ -1,0 +1,59 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bpla-detection-sa
+  namespace: bpla
+  labels:
+    app: bpla-detection
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: bpla-detection-role
+  namespace: bpla
+  labels:
+    app: bpla-detection
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "pods/status"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["services", "endpoints"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: bpla-detection-rolebinding
+  namespace: bpla
+  labels:
+    app: bpla-detection
+subjects:
+  - kind: ServiceAccount
+    name: bpla-detection-sa
+    namespace: bpla
+roleRef:
+  kind: Role
+  name: bpla-detection-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: bpla-detection-pdb
+  namespace: bpla
+  labels:
+    app: bpla-detection

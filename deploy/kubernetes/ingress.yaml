@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bpla
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bpla-detection-sa
+  namespace: bpla
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bpla-detection-config
+  namespace: bpla
+data:
+  MODEL_PATH: "/app/models/best_model.bson"
+  DEVICE: "auto"
+  CONFIDENCE_THRESHOLD: "0.25"
+  IOU_THRESHOLD: "0.5"
+  JULIA_NUM_THREADS: "4"
+  LOG_LEVEL: "INFO"

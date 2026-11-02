@@ -1,0 +1,423 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bpla
+  labels:
+    name: bpla
+    environment: production
+    app: bpla-detection
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bpla-detection-sa
+  namespace: bpla
+  labels:
+    app: bpla-detection
+  annotations:
+    eks.amazonaws.com/role-arn: ""
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bpla-detection-config
+  namespace: bpla
+  labels:
+    app: bpla-detection
+data:
+  GRPC_HOST: "0.0.0.0"
+  GRPC_PORT: "50051"
+  GRPC_INTERNAL_PORT: "50052"
+  GRPC_MODE: "all"
+  MODEL_PATH: "/app/models/best_model.bson"
+  DEVICE: "auto" 
+  CONFIDENCE_THRESHOLD: "0.25"
+  IOU_THRESHOLD: "0.5"
+  INPUT_SIZE: "640"
+  BATCH_SIZE: "1"
+  LOG_LEVEL: "INFO"
+  LOG_FORMAT: "json"
+  METRICS_PORT: "8000"
+  JULIA_NUM_THREADS: "4"
+  JULIA_CPU_TARGET: "native"
+  config.yaml: |
+    model:
+      path: /app/models/best_model.bson
+      confidence_threshold: 0.25
+      iou_threshold: 0.5
+      input_size: 640
+    inference:
+      device: auto
+      batch_size: 1
+      num_workers: 4
+    cache:
+      enabled: true
+      ttl_seconds: 3600
+      max_size: 1000
+    circuit_breaker:
+      failure_threshold: 5
+      timeout_seconds: 30
+      half_open_requests: 3
+    rate_limiter:
+      requests_per_minute: 1000
+      burst: 2000
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bpla-detection-secrets
+  namespace: bpla
+  labels:
+    app: bpla-detection
+type: Opaque
+stringData:
+  API_KEY: "${API_KEY}"
+  REDIS_PASSWORD: "${REDIS_PASSWORD}"
+  RABBITMQ_PASSWORD: "${RABBITMQ_PASSWORD}"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bpla-model-pvc
+  namespace: bpla
+  labels:
+    app: bpla-detection
+    component: storage
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: nfs-client
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bpla-output-pvc
+  namespace: bpla
+  labels:
+    app: bpla-detection
+    component: storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: standard
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bpla
+  labels:
+    name: bpla
+    environment: production
+---
+kind: ConfigMap
+metadata:
+  name: bpla-mamaa-config
+  namespace: bpla
+  labels:
+    app: bpla-person-detection
+    version: mamaa
+data:
+  MODEL_PATH: "/app/models/best_model.bson"
+  DEVICE: "auto"
+  CONFIDENCE_THRESHOLD: "0.25"
+  IOU_THRESHOLD: "0.5"
+  INPUT_SIZE: "640"
+  BATCH_SIZE: "1"
+  JULIA_NUM_THREADS: "4"
+  JULIA_GPU_TARGET: "native"
+  LOG_LEVEL: "INFO"
+  LOG_FORMAT: "json"
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "8000"
+  METRICS_PATH: "/metrics"
+  CACHE_ENABLED: "true"
+  CACHE_TTL_DEFAULT: "300"
+  CACHE_TTL_MODEL: "3600"
+  CACHE_TTL_RESULT: "600"
+  REDIS_HOST: "redis-cache"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  MQ_ENABLED: "true"
+  RABBITMQ_HOST: "message-queue"
+  RABBITMQ_PORT: "5672"
+  QUEUE_INFERENCE: "inference_requests"
+  QUEUE_RESULTS: "inference_results"
+  CIRCUIT_BREAKER_ENABLED: "true"
+  CIRCUIT_BREAKER_FAILURE_THRESHOLD: "5"
+  CIRCUIT_BREAKER_TIMEOUT_SECONDS: "30"
+  CIRCUIT_BREAKER_HALF_OPEN_REQUESTS: "3"
+  RATE_LIMITER_ENABLED: "true"
+  RATE_LIMITER_REQUESTS_PER_MINUTE: "1000"
+  RATE_LIMITER_BURST: "2000"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bpla-secrets
+  namespace: bpla
+type: Opaque
+stringData:
+  REDIS_PASSWORD: "${REDIS_PASSWORD}"
+  RABBITMQ_USER: "${RABBITMQ_USER}"
+  RABBITMQ_PASSWORD: "${RABBITMQ_PASSWORD}"
+  API_KEY: "${API_KEY}"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bpla-detection-sa
+  namespace: bpla
+  labels:
+    app: bpla-person-detection
+---
+# -----------------------------------------------------------------------------
+# RBAC (namespace scope, not cluster)
+# -----------------------------------------------------------------------------
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: bpla-mamaa
+  namespace: bpla
+  labels:
+    app: bpla-person-detection
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "endpoints", "configmaps"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: bpla
+  namespace: bpla
+  labels:
+    app: bpla-person-detection
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: bpla-mamaa
+subjects:
+  - kind: ServiceAccount
+    name: bpla-detection-sa
+    namespace: bpla
+---
+# -----------------------------------------------------------------------------
+# Redis Cache
+# -----------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-cache
+  namespace: bpla
+  labels:
+    app: redis-cache
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-cache
+  template:
+    metadata:
+      labels:
+        app: redis-cache
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 999
+      containers:
+        - name: redis
+          image: redis:7.4.0-alpine
+          imagePullPolicy: Always
+          args: ["--requirepass", "$(REDIS_PASSWORD)"]
+          ports:
+            - containerPort: 6379
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: bpla-mamaa-secrets
+                  key: REDIS_PASSWORD
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+              ephemeral-storage: "512Mi"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+              ephemeral-storage: "1Gi"
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: redis-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cache
+  namespace: bpla
+  labels:
+    app: redis-cache
+spec:
+  ports:
+    - port: 6379
+      targetPort: 6379
+  selector:
+    app: redis-cache
+---
+# -----------------------------------------------------------------------------
+# RabbitMQ
+# -----------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+  namespace: bpla
+  labels:
+    app: rabbitmq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 999
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:4.1.3-management-alpine
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5672
+              name: amqp
+            - containerPort: 15672
+              name: management
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: bpla-mamaa-secrets
+                  key: RABBITMQ_USER
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: bpla-mamaa-secrets
+                  key: RABBITMQ_PASSWORD
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+              ephemeral-storage: "1Gi"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+              ephemeral-storage: "2Gi"
+          volumeMounts:
+            - name: rabbitmq-data
+              mountPath: /var/lib/rabbitmq
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+          livenessProbe:
+            tcpSocket:
+              port: 5672
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+        - name: rabbitmq-data
+          persistentVolumeClaim:
+            claimName: rabbitmq-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  namespace: bpla
+  labels:
+    app: rabbitmq
+spec:
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: 5672
+    - name: management
+      port: 15672
+      targetPort: 15672
+  selector:
+    app: rabbitmq
+---
+# -----------------------------------------------------------------------------
+# PersistentVolumeClaims
+# -----------------------------------------------------------------------------
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bpla-model-pvc
+  namespace: bpla
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+  namespace: bpla
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rabbitmq-pvc
+  namespace: bpla
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi

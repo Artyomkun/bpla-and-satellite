@@ -1,0 +1,36 @@
+{{- if .Values.autoscaling.enabled -}}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "bpla-person-detection.fullname" . }}
+  namespace: {{ .Values.global.namespace | default "bpla" }}
+  labels:
+    {{- include "bpla-person-detection.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "bpla-person-detection.fullname" . }}
+  minReplicas: {{ .Values.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: gpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.targetGPUUtilizationPercentage }} 
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.targetMemoryUtilizationPercentage }}
+    {{- if .Values.autoscaling.customMetrics.enabled }}
+    {{- toYaml .Values.autoscaling.customMetrics.metrics | nindent 4 }}
+    {{- end }}
+  {{- if .Values.autoscaling.behavior }}
+  behavior:
+    {{- toYaml .Values.autoscaling.behavior | nindent 4 }}
+  {{- end }}
+{{- end }}
